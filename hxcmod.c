@@ -123,7 +123,7 @@ typedef struct modtype_
 	int numberofchannels;
 }modtype;
 
-modtype modlist[]=
+static const modtype modlist[]=
 {
 	{ "M!K!",4},
 	{ "M.K.",4},
@@ -878,7 +878,7 @@ int hxcmod_setcfg(modcontext * modctx, int samplerate, int bits, int stereo, int
 			modctx->stereo = 1;
 		else
 			modctx->stereo = 0;
-			
+
 		if(stereo_separation < 4)
 		{
 			modctx->stereo_separation = stereo_separation;
@@ -1033,76 +1033,80 @@ void hxcmod_fillbuffer( modcontext * modctx, unsigned short * outbuffer, unsigne
 	{
 		if(modctx->mod_loaded)
 		{
+		    modcontext ctx = *modctx;
+
 			state_remaining_steps = 0;
 
 			if( trkbuf )
 			{
 				trkbuf->cur_rd_index = 0;
 
-				memcopy(trkbuf->name,modctx->song.title,sizeof(modctx->song.title));
+				memcopy(trkbuf->name,ctx.song.title,sizeof(ctx.song.title));
 
 				for(i=0;i<31;i++)
 				{
-					memcopy(trkbuf->instruments[i].name,modctx->song.samples[i].name,sizeof(trkbuf->instruments[i].name));
+					memcopy(trkbuf->instruments[i].name,ctx.song.samples[i].name,sizeof(trkbuf->instruments[i].name));
 				}
 			}
 
-			ll = modctx->last_l_sample;
-			lr = modctx->last_r_sample;
+			ll = ctx.last_l_sample;
+			lr = ctx.last_r_sample;
+
+            muint patternpos = ctx.patternpos;
 
 			for (i = 0; i < nbsample; i++)
 			{
 				//---------------------------------------
-				if( modctx->patternticks++ > modctx->patternticksaim )
+				if( ctx.patternticks++ > ctx.patternticksaim )
 				{
-					if( !modctx->patterndelay )
+					if( !ctx.patterndelay )
 					{
-						nptr = modctx->patterndata[modctx->song.patterntable[modctx->tablepos]];
-						nptr = nptr + modctx->patternpos;
-						cptr = modctx->channels;
+						nptr = ctx.patterndata[ctx.song.patterntable[ctx.tablepos]];
+						nptr = nptr + patternpos;
+						cptr = ctx.channels;
 
-						modctx->patternticks = 0;
-						modctx->patterntickse = 0;
+						ctx.patternticks = 0;
+						ctx.patterntickse = 0;
 
-						for(c=0;c<modctx->number_of_channels;c++)
+						for(c=0;c<ctx.number_of_channels;c++)
 						{
 							worknote((note*)(nptr+c), (channel*)(cptr+c),(char)(c+1),modctx);
 						}
 
-						if( !modctx->jump_loop_effect )
-							modctx->patternpos += modctx->number_of_channels;
+						if( !ctx.jump_loop_effect )
+							patternpos += ctx.number_of_channels;
 						else
-							modctx->jump_loop_effect = 0;
+							ctx.jump_loop_effect = 0;
 
-						if( modctx->patternpos == 64*modctx->number_of_channels )
+						if( patternpos == 64*ctx.number_of_channels )
 						{
-							modctx->tablepos++;
-							modctx->patternpos = 0;
-							if(modctx->tablepos >= modctx->song.length)
-								modctx->tablepos = 0;
+							ctx.tablepos++;
+							patternpos = 0;
+							if(ctx.tablepos >= ctx.song.length)
+								ctx.tablepos = 0;
 						}
 					}
 					else
 					{
-						modctx->patterndelay--;
-						modctx->patternticks = 0;
-						modctx->patterntickse = 0;
+						ctx.patterndelay--;
+						ctx.patternticks = 0;
+						ctx.patterntickse = 0;
 					}
 
 				}
 
-				if( modctx->patterntickse++ > (modctx->patternticksaim/modctx->song.speed) )
+				if( ctx.patterntickse++ > (ctx.patternticksaim/ctx.song.speed) )
 				{
-					nptr = modctx->patterndata[modctx->song.patterntable[modctx->tablepos]];
-					nptr = nptr + modctx->patternpos;
-					cptr = modctx->channels;
+					nptr = ctx.patterndata[ctx.song.patterntable[ctx.tablepos]];
+					nptr = nptr + patternpos;
+					cptr = ctx.channels;
 
-					for(c=0;c<modctx->number_of_channels;c++)
+					for(c=0;c<ctx.number_of_channels;c++)
 					{
 						workeffect(nptr+c, cptr+c);
 					}
 
-					modctx->patterntickse = 0;
+					ctx.patterntickse = 0;
 				}
 
 				//---------------------------------------
@@ -1118,14 +1122,14 @@ void hxcmod_fillbuffer( modcontext * modctx, unsigned short * outbuffer, unsigne
 				l=0;
 				r=0;
 
-				for(j =0, cptr = modctx->channels; j < modctx->number_of_channels ; j++, cptr++)
+				for(j =0, cptr = ctx.channels; j < ctx.number_of_channels ; j++, cptr++)
 				{
 					if( cptr->period != 0 )
 					{
 						finalperiod = cptr->period - cptr->decalperiod - cptr->vibraperiod;
 						if( finalperiod )
 						{
-							cptr->samppos += ( (modctx->sampleticksconst<<10) / finalperiod );
+							cptr->samppos += ( (ctx.sampleticksconst<<10) / finalperiod );
 						}
 
 						cptr->ticks++;
@@ -1167,13 +1171,13 @@ void hxcmod_fillbuffer( modcontext * modctx, unsigned short * outbuffer, unsigne
 						{
 							if( trkbuf->nb_of_state < trkbuf->nb_max_of_state )
 							{
-								trkbuf->track_state_buf[trkbuf->nb_of_state].number_of_tracks = modctx->number_of_channels;
+								trkbuf->track_state_buf[trkbuf->nb_of_state].number_of_tracks = ctx.number_of_channels;
 								trkbuf->track_state_buf[trkbuf->nb_of_state].buf_index = i;
-								trkbuf->track_state_buf[trkbuf->nb_of_state].cur_pattern = modctx->song.patterntable[modctx->tablepos];
-								trkbuf->track_state_buf[trkbuf->nb_of_state].cur_pattern_pos = modctx->patternpos / modctx->number_of_channels;
-								trkbuf->track_state_buf[trkbuf->nb_of_state].cur_pattern_table_pos = modctx->tablepos;
-								trkbuf->track_state_buf[trkbuf->nb_of_state].bpm = modctx->bpm;
-								trkbuf->track_state_buf[trkbuf->nb_of_state].speed = modctx->song.speed;
+								trkbuf->track_state_buf[trkbuf->nb_of_state].cur_pattern = ctx.song.patterntable[ctx.tablepos];
+								trkbuf->track_state_buf[trkbuf->nb_of_state].cur_pattern_pos = patternpos / ctx.number_of_channels;
+								trkbuf->track_state_buf[trkbuf->nb_of_state].cur_pattern_table_pos = ctx.tablepos;
+								trkbuf->track_state_buf[trkbuf->nb_of_state].bpm = ctx.bpm;
+								trkbuf->track_state_buf[trkbuf->nb_of_state].speed = ctx.song.speed;
 								trkbuf->track_state_buf[trkbuf->nb_of_state].tracks[j].cur_effect = cptr->effect_code;
 								trkbuf->track_state_buf[trkbuf->nb_of_state].tracks[j].cur_parameffect = cptr->parameffect;
 								trkbuf->track_state_buf[trkbuf->nb_of_state].tracks[j].cur_period = finalperiod;
@@ -1199,14 +1203,14 @@ void hxcmod_fillbuffer( modcontext * modctx, unsigned short * outbuffer, unsigne
 				tl = (short)l;
 				tr = (short)r;
 
-				if ( modctx->filter )
+				if ( ctx.filter )
 				{
 					// Filter
 					l = (l+ll)>>1;
 					r = (r+lr)>>1;
 				}
 
-				if ( modctx->stereo_separation == 1 )
+				if ( ctx.stereo_separation == 1 )
 				{
 					// Left & Right Stereo panning
 					l = (l+(r>>1));
@@ -1218,20 +1222,46 @@ void hxcmod_fillbuffer( modcontext * modctx, unsigned short * outbuffer, unsigne
 				if( l < -32768 ) l = -32768;
 				if( r > 32767 ) r = 32767;
 				if( r < -32768 ) r = -32768;
-
-				// Store the final sample.
-				outbuffer[(i*2)]   = l;
-				outbuffer[(i*2)+1] = r;
+				if (ctx.bits == 8)
+				{
+					char* outbuffer_b = (char*)outbuffer;
+					if (ctx.stereo)
+					{
+						// Store the final sample.
+						outbuffer_b[(i*2)]   = l >> 8;
+						outbuffer_b[(i*2)+1] = r >> 8;
+					}
+					else
+					{
+						int v = ((l + r) >> 9);
+						outbuffer_b[i]   = v;
+					}
+				}
+				else
+				{
+					if (ctx.stereo)
+					{
+						// Store the final sample.
+						outbuffer[(i*2)]   = l;
+						outbuffer[(i*2)+1] = r;
+					}
+					else
+					{
+						outbuffer[i]   = (l + r) >> 1;
+					}
+				}
 
 				ll = tl;
 				lr = tr;
 
 			}
 
-			modctx->last_l_sample = ll;
-			modctx->last_r_sample = lr;
+            ctx.patternpos = patternpos;
+			ctx.last_l_sample = ll;
+			ctx.last_r_sample = lr;
 
-			modctx->samplenb = modctx->samplenb+nbsample;
+			ctx.samplenb = ctx.samplenb+nbsample;
+			*modctx = ctx;
 		}
 		else
 		{
