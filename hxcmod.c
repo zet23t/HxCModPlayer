@@ -52,7 +52,9 @@
 // -------------------------------------------
 ///////////////////////////////////////////////////////////////////////////////////
 
+#ifndef TD2PLAY
 #include "hxcmod.h"
+#endif // TD2PLAY
 
 ///////////////////////////////////////////////////////////////////////////////////
 
@@ -149,7 +151,7 @@ static const modtype modlist[]=
 
 ///////////////////////////////////////////////////////////////////////////////////
 
-static void memcopy( void * dest, void *source, unsigned long size )
+static void memcopy( void * dest, const void *source, unsigned long size )
 {
 	unsigned long i;
 	unsigned char * d,*s;
@@ -174,7 +176,7 @@ static void memclear( void * dest, unsigned char value, unsigned long size )
 	}
 }
 
-static int memcompare( unsigned char * buf1, unsigned char * buf2, unsigned int size )
+static int memcompare( const unsigned char * buf1, const unsigned char * buf2, const unsigned int size )
 {
 	unsigned int i;
 
